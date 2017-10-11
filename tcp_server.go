@@ -70,7 +70,7 @@ func (s *server) OnNewMessage(callback func(c *Client, message string)) {
 }
 
 // Start network server
-func (s *server) Listen() {
+func (s *server) Listen() error {
 	listener, err := net.Listen("tcp", s.address)
 	if err != nil {
 		log.Fatal("Error starting TCP server.")
@@ -78,7 +78,13 @@ func (s *server) Listen() {
 	defer listener.Close()
 
 	for {
-		conn, _ := listener.Accept()
+		conn, err := listener.Accept()
+		if err != nil {
+			log.Println("ups...%s", err)
+			return err
+		}
+
+		log.Printf("received connection from %s", conn.RemoteAddr().String())
 		client := &Client{
 			conn:   conn,
 			Server: s,
@@ -95,9 +101,14 @@ func New(address string) *server {
 		address: address,
 	}
 
-	server.OnNewClient(func(c *Client) {})
+	server.OnNewClient(func(c *Client) {
+		c.Send("Hello\n")
+	})
+
 	server.OnNewMessage(func(c *Client, message string) {})
-	server.OnClientConnectionClosed(func(c *Client, err error) {})
+	server.OnClientConnectionClosed(func(c *Client, err error) {
+		c.Send("bye\n")
+	})
 
 	return server
 }
